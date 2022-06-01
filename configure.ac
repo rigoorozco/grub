@@ -26,12 +26,15 @@ dnl This is necessary because the target type in autoconf does not
 dnl describe such a system very well.
 dnl
 dnl The current strategy is to use variables with no prefix (such as
-dnl CC, CFLAGS, etc.) for the host type, variables with prefix "BUILD_"
-dnl (such as BUILD_CC, BUILD_CFLAGS, etc.) for the build type and variables
-dnl with the prefix "TARGET_" (such as TARGET_CC, TARGET_CFLAGS, etc.) are
-dnl used for the target type. See INSTALL for full list of variables.
+dnl CC, CFLAGS, etc.) for the host and target type, variables with
+dnl prefix "BUILD_" (such as BUILD_CC, BUILD_CFLAGS, etc.) for the
+dnl build type, variables with prefix "HOST_" (such as HOST_CC,
+dnl HOST_CFLAGS, etc.) for the host type and variables with the prefix
+dnl "TARGET_" (such as TARGET_CC, TARGET_CFLAGS, etc.) are used for
+dnl the target type. See INSTALL for full list of variables and
+dnl description of the relationships between them.
 
-AC_INIT([GRUB],[2.03],[bug-grub@gnu.org])
+AC_INIT([GRUB],[2.06],[bug-grub@gnu.org])
 
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -45,8 +48,8 @@ save_program_prefix="${program_prefix}"
 AC_CANONICAL_TARGET
 program_prefix="${save_program_prefix}"
 
-AM_INIT_AUTOMAKE([1.10.1])
-AC_PREREQ(2.60)
+AM_INIT_AUTOMAKE([1.11])
+AC_PREREQ(2.63)
 AC_CONFIG_SRCDIR([include/grub/dl.h])
 AC_CONFIG_HEADER([config-util.h])
 
@@ -77,8 +80,14 @@ grub_TRANSFORM([grub-file])
 
 # Optimization flag.  Allow user to override.
 if test "x$TARGET_CFLAGS" = x; then
-  TARGET_CFLAGS="$TARGET_CFLAGS -Os"
+  TARGET_CFLAGS=-Os
 fi
+
+# Enable support for "restrict" keyword and other
+# features from gnu99 C language standard.
+BUILD_CFLAGS="-std=gnu99 $BUILD_CFLAGS"
+HOST_CFLAGS="-std=gnu99 $HOST_CFLAGS"
+TARGET_CFLAGS="-std=gnu99 $TARGET_CFLAGS"
 
 # Default HOST_CPPFLAGS
 HOST_CPPFLAGS="$HOST_CPPFLAGS -Wall -W"
@@ -104,6 +113,12 @@ case "$target_cpu" in
   aarch64*)
 		target_cpu=arm64
 		;;
+  riscv32*)
+		target_cpu=riscv32
+		;;
+  riscv64*)
+		target_cpu=riscv64
+		;;
 esac
 
 # Specify the platform (such as firmware).
@@ -127,6 +142,8 @@ if test "x$with_platform" = x; then
     ia64-*) platform=efi ;;
     arm-*) platform=uboot ;;
     arm64-*) platform=efi ;;
+    riscv32-*) platform=efi ;;
+    riscv64-*) platform=efi ;;
     *)
       AC_MSG_WARN([unsupported CPU: "$target_cpu" - only building utilities])
       platform=none
@@ -175,6 +192,8 @@ case "$target_cpu"-"$platform" in
   arm-coreboot) ;;
   arm-efi) ;;
   arm64-efi) ;;
+  riscv32-efi) ;;
+  riscv64-efi) ;;
   *-emu) ;;
   *-none) ;;
   *) AC_MSG_ERROR([platform "$platform" is not supported for target CPU "$target_cpu"]) ;;
@@ -352,6 +371,7 @@ AC_CHECK_PROG(HAVE_CXX, $CXX, yes, no)
 
 AC_GNU_SOURCE
 AM_GNU_GETTEXT([external])
+AM_GNU_GETTEXT_VERSION([0.18.3])
 AC_SYS_LARGEFILE
 
 # Identify characteristics of the host architecture.
@@ -399,7 +419,7 @@ else
 fi
 
 # Check for functions and headers.
-AC_CHECK_FUNCS(posix_memalign memalign getextmntent)
+AC_CHECK_FUNCS(posix_memalign memalign getextmntent atexit)
 AC_CHECK_HEADERS(sys/param.h sys/mount.h sys/mnttab.h limits.h)
 
 # glibc 2.25 still includes sys/sysmacros.h in sys/types.h but emits deprecation
@@ -550,6 +570,24 @@ CFLAGS="$TARGET_CFLAGS"
 CPPFLAGS="$TARGET_CPPFLAGS"
 LDFLAGS="$TARGET_LDFLAGS"
 LIBS=""
+
+if test "x$target_m32" = x1; then
+  # Force 32-bit mode.
+  TARGET_CFLAGS="$TARGET_CFLAGS -m32"
+  TARGET_CCASFLAGS="$TARGET_CCASFLAGS -m32"
+  TARGET_CPPFLAGS="$TARGET_CPPFLAGS -m32"
+  TARGET_LDFLAGS="$TARGET_LDFLAGS -m32"
+  TARGET_MODULE_FORMAT="elf32"
+fi
+
+if test "x$target_m64" = x1; then
+  # Force 64-bit mode.
+  TARGET_CFLAGS="$TARGET_CFLAGS -m64"
+  TARGET_CCASFLAGS="$TARGET_CCASFLAGS -m64"
+  TARGET_CPPFLAGS="$TARGET_CPPFLAGS -m64"
+  TARGET_LDFLAGS="$TARGET_LDFLAGS -m64"
+  TARGET_MODULE_FORMAT="elf64"
+fi
 
 # debug flags.
 TARGET_CFLAGS="$TARGET_CFLAGS $WARN_FLAGS -g -Wredundant-decls -Wmissing-prototypes -Wmissing-declarations"
@@ -739,24 +777,6 @@ if test "x$target_cpu" = xi386 && test "x$platform" != xemu; then
   TARGET_CFLAGS="$TARGET_CFLAGS -march=i386"
 fi
 
-if test "x$target_m32" = x1; then
-  # Force 32-bit mode.
-  TARGET_CFLAGS="$TARGET_CFLAGS -m32"
-  TARGET_CCASFLAGS="$TARGET_CCASFLAGS -m32"
-  TARGET_CPPFLAGS="$TARGET_CPPFLAGS -m32"
-  TARGET_LDFLAGS="$TARGET_LDFLAGS -m32"
-  TARGET_MODULE_FORMAT="elf32"
-fi
-
-if test "x$target_m64" = x1; then
-  # Force 64-bit mode.
-  TARGET_CFLAGS="$TARGET_CFLAGS -m64"
-  TARGET_CCASFLAGS="$TARGET_CCASFLAGS -m64"
-  TARGET_CPPFLAGS="$TARGET_CPPFLAGS -m64"
-  TARGET_LDFLAGS="$TARGET_LDFLAGS -m64"
-  TARGET_MODULE_FORMAT="elf64"
-fi
-
 if test "x$grub_cv_cc_target_clang" = xno && test "x$target_cpu" = xi386 && test "x$platform" != xemu && test "x$platform" != xefi; then
    TARGET_CFLAGS="$TARGET_CFLAGS -mrtd -mregparm=3"
 fi
@@ -828,10 +848,25 @@ if test x"$platform" != xemu ; then
        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[]])],
 		         [grub_cv_target_cc_soft_float="-mgeneral-regs-only"], [])
     fi
+    if test "x$target_cpu" = xriscv32; then
+       CFLAGS="$TARGET_CFLAGS -march=rv32imac -mabi=ilp32 -Werror"
+       AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[]])],
+		         [grub_cv_target_cc_soft_float="-march=rv32imac -mabi=ilp32"], [])
+    fi
+    if test "x$target_cpu" = xriscv64; then
+       CFLAGS="$TARGET_CFLAGS -march=rv64imac -mabi=lp64 -Werror"
+       AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[]])],
+		         [grub_cv_target_cc_soft_float="-march=rv64imac -mabi=lp64"], [])
+    fi
     if test "x$target_cpu" = xia64; then
        CFLAGS="$TARGET_CFLAGS -mno-inline-float-divide -mno-inline-sqrt -Werror"
        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[]])],
 		         [grub_cv_target_cc_soft_float="-mno-inline-float-divide -mno-inline-sqrt"], [])
+    fi
+    if test "x$target_cpu" = xsh4; then
+       CFLAGS="$TARGET_CFLAGS -m4-nofpu -Werror"
+       AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[]])],
+		         [grub_cv_target_cc_soft_float="-m4-nofpu"], [])
     fi
     for cand in "-msoft-float -Xclang -msoft-float -Xclang -no-implicit-float" \
 		"-Xclang -msoft-float -Xclang -no-implicit-float" \
@@ -978,6 +1013,17 @@ if test "x$grub_cv_cc_fno_unwind_tables" = xyes; then
   TARGET_CFLAGS="$TARGET_CFLAGS -fno-unwind-tables"
 fi
 
+# Do not generate .ident sections.
+AC_CACHE_CHECK([whether -fno-ident works], [grub_cv_cc_fno_ident], [
+  CFLAGS="$TARGET_CFLAGS -fno-ident"
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[]])],
+      [grub_cv_cc_fno_ident=yes],
+      [grub_cv_cc_fno_ident=no])
+])
+
+if test "x$grub_cv_cc_fno_ident" = xyes; then
+  TARGET_CFLAGS="$TARGET_CFLAGS -fno-ident"
+fi
 
 CFLAGS="$TARGET_CFLAGS"
 
@@ -1143,7 +1189,7 @@ AC_SUBST(TARGET_LDFLAGS_OLDMAGIC)
 
 LDFLAGS="$TARGET_LDFLAGS"
 
-if test "$target_cpu" = x86_64 || test "$target_cpu" = sparc64 ; then
+if test "$target_cpu" = x86_64 || test "$target_cpu" = sparc64 || test "$target_cpu" = riscv64 ; then
   # Use large model to support 4G memory
   AC_CACHE_CHECK([whether option -mcmodel=large works], grub_cv_cc_mcmodel, [
     CFLAGS="$TARGET_CFLAGS -mcmodel=large"
@@ -1153,7 +1199,7 @@ if test "$target_cpu" = x86_64 || test "$target_cpu" = sparc64 ; then
   ])
   if test "x$grub_cv_cc_mcmodel" = xyes; then
     TARGET_CFLAGS="$TARGET_CFLAGS -mcmodel=large"
-  elif test "$target_cpu" = sparc64; then
+  elif test "$target_cpu" = sparc64 || test "$target_cpu" = riscv64; then
     TARGET_CFLAGS="$TARGET_CFLAGS -mcmodel=medany"
   fi
 fi
@@ -1177,7 +1223,8 @@ if test "x$target_cpu" = xarm; then
   AC_CACHE_CHECK([for options to disable movt and movw], grub_cv_target_cc_mno_movt, [
     grub_cv_target_cc_mno_movt=no
     for cand in "-mno-movt" \
-		"-mllvm -arm-use-movt=0"; do
+		"-mllvm -arm-use-movt=0" \
+		"-mword-relocations"; do
       if test x"$grub_cv_target_cc_mno_movt" != xno ; then
         break
       fi
@@ -1207,12 +1254,12 @@ if test "x$target_cpu" = xarm; then
 fi
 
 AC_CACHE_CHECK([whether option -Qn works], grub_cv_target_cc_qn, [
-  CFLAGS="$TARGET_CFLAGS -Qn -Werror"
+  CFLAGS="$TARGET_CFLAGS -Qn -Qunused-arguments -Werror"
   AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[]])],
 		    [grub_cv_target_cc_qn=yes],
 		    [grub_cv_target_cc_qn=no])])
 if test "x$grub_cv_target_cc_qn" = xyes; then
-  TARGET_CFLAGS="$TARGET_CFLAGS -Qn"
+  TARGET_CFLAGS="$TARGET_CFLAGS -Qn -Qunused-arguments"
 fi
 
 #
@@ -1230,6 +1277,7 @@ grub_CHECK_LINK_PIE
 # `-fPIE' or '-fpie' and '-pie' in the default specs.
 if [ x"$pie_possible" = xyes ]; then
   TARGET_CFLAGS="$TARGET_CFLAGS -fno-PIE -fno-pie"
+  TARGET_CCASFLAGS="$TARGET_CCASFLAGS -fno-PIE -fno-pie"
 fi
 
 if [ x"$link_nopie_needed" = xyes ] || [ x"$pie_possible" = xyes ]; then
@@ -1264,12 +1312,41 @@ fi]
 
 CFLAGS="$TARGET_CFLAGS"
 
-# Smashing stack protector.
+# Stack smashing protector.
 grub_CHECK_STACK_PROTECTOR
-# Need that, because some distributions ship compilers that include
-# `-fstack-protector' in the default specs.
-if test "x$ssp_possible" = xyes; then
-  TARGET_CFLAGS="$TARGET_CFLAGS -fno-stack-protector"
+AC_ARG_ENABLE([stack-protector],
+	      AS_HELP_STRING([--enable-stack-protector],
+			     [enable the stack protector]),
+	      [],
+	      [enable_stack_protector=no])
+if test "x$enable_stack_protector" = xno; then
+  if test "x$ssp_possible" = xyes; then
+    # Need that, because some distributions ship compilers that include
+    # `-fstack-protector' in the default specs.
+    TARGET_CFLAGS="$TARGET_CFLAGS -fno-stack-protector"
+  fi
+elif test "x$platform" != xefi; then
+  AC_MSG_ERROR([--enable-stack-protector is only supported on EFI platforms])
+elif test "x$ssp_global_possible" != xyes; then
+  AC_MSG_ERROR([--enable-stack-protector is not supported (compiler doesn't support -mstack-protector-guard=global)])
+else
+  TARGET_CFLAGS="$TARGET_CFLAGS -mstack-protector-guard=global"
+  if test "x$enable_stack_protector" = xyes; then
+    if test "x$ssp_possible" != xyes; then
+      AC_MSG_ERROR([--enable-stack-protector is not supported (compiler doesn't support -fstack-protector)])
+    fi
+    TARGET_CFLAGS="$TARGET_CFLAGS -fstack-protector"
+  elif test "x$enable_stack_protector" = xstrong; then
+    if test "x$ssp_strong_possible" != xyes; then
+      AC_MSG_ERROR([--enable-stack-protector=strong is not supported (compiler doesn't support -fstack-protector-strong)])
+    fi
+    TARGET_CFLAGS="$TARGET_CFLAGS -fstack-protector-strong"
+  else
+    # Note, -fstack-protector-all requires that the protector is disabled for
+    # functions that appear in the call stack when the canary is initialized.
+    AC_MSG_ERROR([invalid value $enable_stack_protector for --enable-stack-protector])
+  fi
+  TARGET_CPPFLAGS="$TARGET_CPPFLAGS -DGRUB_STACK_PROTECTOR=1"
 fi
 
 CFLAGS="$TARGET_CFLAGS"
@@ -1337,7 +1414,7 @@ fi
 
 # Check for libgcc symbols
 if test x"$platform" = xemu; then
-AC_CHECK_FUNCS(__udivsi3 __umodsi3 __divsi3 __modsi3 __divdi3 __moddi3 __udivdi3 __umoddi3 __ctzdi2 __ctzsi2 __aeabi_uidiv __aeabi_uidivmod __aeabi_idiv __aeabi_idivmod __aeabi_ulcmp __muldi3 __aeabi_lmul __aeabi_memcpy __aeabi_memcpy4 __aeabi_memcpy8 __aeabi_memclr __aeabi_memclr4 __aeabi_memclr8 __aeabi_memset __aeabi_lasr __aeabi_llsl __aeabi_llsr _restgpr_14_x __ucmpdi2 __ashldi3 __ashrdi3 __lshrdi3 __bswapsi2 __bswapdi2 __bzero __register_frame_info __deregister_frame_info ___chkstk_ms __chkstk_ms)
+AC_CHECK_FUNCS(__udivsi3 __umodsi3 __divsi3 __modsi3 __divdi3 __moddi3 __udivdi3 __umoddi3 __ctzdi2 __ctzsi2 __clzdi2 __aeabi_uidiv __aeabi_uidivmod __aeabi_idiv __aeabi_idivmod __aeabi_ulcmp __muldi3 __aeabi_lmul __aeabi_memcpy __aeabi_memcpy4 __aeabi_memcpy8 __aeabi_memclr __aeabi_memclr4 __aeabi_memclr8 __aeabi_memset __aeabi_lasr __aeabi_llsl __aeabi_llsr _restgpr_14_x __ucmpdi2 __ashldi3 __ashrdi3 __lshrdi3 __bswapsi2 __bswapdi2 __bzero __register_frame_info __deregister_frame_info ___chkstk_ms __chkstk_ms)
 fi
 
 if test "x$TARGET_APPLE_LINKER" = x1 ; then
@@ -1374,7 +1451,7 @@ AC_SUBST(TARGET_NMFLAGS_DEFINED_ONLY)
 if test "$platform" != emu; then
 AC_CACHE_CHECK([whether -nostdinc -isystem works], [grub_cv_cc_isystem], [
   SAVED_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="$TARGET_CPPFLAGS -nostdinc -isystem `$TARGET_CC -print-file-name=include`"
+  CPPFLAGS="$TARGET_CPPFLAGS -nostdlib -nostdinc -isystem `$TARGET_CC -print-file-name=include`"
   AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <stdarg.h>
 #include <stddef.h>
 int va_arg_func (int fixed, va_list args);]], [[]])],
@@ -1414,9 +1491,11 @@ LIBS="$tmp_LIBS"
 # Memory manager debugging.
 AC_ARG_ENABLE([mm-debug],
 	      AS_HELP_STRING([--enable-mm-debug],
-                             [include memory manager debugging]),
-              [AC_DEFINE([MM_DEBUG], [1],
-                         [Define to 1 if you enable memory manager debugging.])])
+                             [include memory manager debugging]))
+if test x$enable_mm_debug = xyes; then
+    AC_DEFINE([MM_DEBUG], [1],
+            [Define to 1 if you enable memory manager debugging.])
+fi
 
 AC_ARG_ENABLE([cache-stats],
 	      AS_HELP_STRING([--enable-cache-stats],
@@ -1916,6 +1995,10 @@ AM_CONDITIONAL([COND_arm_coreboot], [test x$target_cpu = xarm -a x$platform = xc
 AM_CONDITIONAL([COND_arm_efi], [test x$target_cpu = xarm -a x$platform = xefi])
 AM_CONDITIONAL([COND_arm64], [test x$target_cpu = xarm64 ])
 AM_CONDITIONAL([COND_arm64_efi], [test x$target_cpu = xarm64 -a x$platform = xefi])
+AM_CONDITIONAL([COND_riscv32], [test x$target_cpu = xriscv32 ])
+AM_CONDITIONAL([COND_riscv64], [test x$target_cpu = xriscv64 ])
+AM_CONDITIONAL([COND_riscv32_efi], [test x$target_cpu = xriscv32 -a x$platform = xefi])
+AM_CONDITIONAL([COND_riscv64_efi], [test x$target_cpu = xriscv64 -a x$platform = xefi])
 
 AM_CONDITIONAL([COND_HOST_HURD], [test x$host_kernel = xhurd])
 AM_CONDITIONAL([COND_HOST_LINUX], [test x$host_kernel = xlinux])
@@ -1990,7 +2073,7 @@ fi
 
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([grub-core/Makefile])
-AC_CONFIG_FILES([grub-core/gnulib/Makefile])
+AC_CONFIG_FILES([grub-core/lib/gnulib/Makefile])
 AC_CONFIG_FILES([po/Makefile.in])
 AC_CONFIG_FILES([docs/Makefile])
 AC_CONFIG_FILES([util/bash-completion.d/Makefile])
@@ -2077,6 +2160,11 @@ if test x"$liblzma_excuse" != x ; then
 echo "Without liblzma (no support for XZ-compressed mips images) ($liblzma_excuse)"
 else
 echo "With liblzma from $LIBLZMA (support for XZ-compressed mips images)"
+fi
+if test "x$enable_stack_protector" != xno; then
+echo "With stack smashing protector: Yes"
+else
+echo "With stack smashing protector: No"
 fi
 echo "*******************************************************"
 ]

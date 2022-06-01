@@ -164,7 +164,7 @@ struct grub_efi_tpm2_protocol
 				      grub_efi_boolean_t * EventLogTruncated);
   grub_efi_status_t (*hash_log_extend_event) (struct grub_efi_tpm2_protocol *
 					      this, grub_efi_uint64_t Flags,
-					      grub_efi_physical_address_t *
+					      grub_efi_physical_address_t
 					      DataToHash,
 					      grub_efi_uint64_t DataToHashLen,
 					      EFI_TCG2_EVENT *EfiTcgEvent);
@@ -176,10 +176,10 @@ struct grub_efi_tpm2_protocol
 				       OutputParameterBlockSize,
 				       grub_efi_uint8_t *
 				       OutputParameterBlock);
-  grub_efi_status_t (*get_active_pcr_blanks) (struct grub_efi_tpm2_protocol *
-					      this,
-					      grub_efi_uint32_t *
-					      ActivePcrBanks);
+  grub_efi_status_t (*get_active_pcr_banks) (struct grub_efi_tpm2_protocol *
+					     this,
+					     grub_efi_uint32_t *
+					     ActivePcrBanks);
   grub_efi_status_t (*set_active_pcr_banks) (struct grub_efi_tpm2_protocol *
 					     this,
 					     grub_efi_uint32_t

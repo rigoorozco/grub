@@ -125,8 +125,6 @@ read_block_header (struct grub_lzopio *lzopio)
 			  sizeof (lzopio->block.ucheck)) !=
 	  sizeof (lzopio->block.ucheck))
 	return -1;
-
-      lzopio->block.ucheck = lzopio->block.ucheck;
     }
 
   /* Read checksum of compressed data.  */
@@ -143,8 +141,6 @@ read_block_header (struct grub_lzopio *lzopio)
 			      sizeof (lzopio->block.ccheck)) !=
 	      sizeof (lzopio->block.ccheck))
 	    return -1;
-
-	  lzopio->block.ccheck = lzopio->block.ccheck;
 	}
     }
 
@@ -531,11 +527,11 @@ grub_lzopio_close (grub_file_t file)
 
 static struct grub_fs grub_lzopio_fs = {
   .name = "lzopio",
-  .dir = 0,
-  .open = 0,
-  .read = grub_lzopio_read,
-  .close = grub_lzopio_close,
-  .label = 0,
+  .fs_dir = 0,
+  .fs_open = 0,
+  .fs_read = grub_lzopio_read,
+  .fs_close = grub_lzopio_close,
+  .fs_label = 0,
   .next = 0
 };
 

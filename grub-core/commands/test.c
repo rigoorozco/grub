@@ -31,7 +31,7 @@ GRUB_MOD_LICENSE ("GPLv3+");
 
 /* A simple implementation for signed numbers. */
 static int
-grub_strtosl (char *arg, char **end, int base)
+grub_strtosl (char *arg, const char ** const end, int base)
 {
   if (arg[0] == '-')
     return -grub_strtoul (arg + 1, end, base);
@@ -133,15 +133,15 @@ get_fileinfo (char *path, struct test_parse_ctx *ctx)
 
       /* Fetch writing time. */
       ctx->file_info.mtimeset = 0;
-      if (fs->mtime)
+      if (fs->fs_mtime)
 	{
-	  if (! fs->mtime (dev, &ctx->file_info.mtime))
+	  if (! fs->fs_mtime (dev, &ctx->file_info.mtime))
 	    ctx->file_info.mtimeset = 1;
 	  grub_errno = GRUB_ERR_NONE;
 	}
     }
   else
-    (fs->dir) (dev, path, find_file, ctx);
+    (fs->fs_dir) (dev, path, find_file, ctx);
 
   grub_device_close (dev);
   grub_free (path);

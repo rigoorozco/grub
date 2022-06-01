@@ -314,7 +314,7 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
 
   grub_memcpy (params, LINUX_IMAGE, sizeof (LINUX_IMAGE));
   grub_create_loader_cmdline (argc, argv, params + sizeof (LINUX_IMAGE) - 1,
-			      size);
+			      size, GRUB_VERIFY_KERNEL_CMDLINE);
 #else
   linux_argv = extra;
   argv_off = (grub_uint8_t *) linux_argv - (grub_uint8_t *) playground;
@@ -442,12 +442,9 @@ grub_cmd_initrd (grub_command_t cmd __attribute__ ((unused)),
   {
     grub_relocator_chunk_t ch;
 
-    err = grub_relocator_alloc_chunk_align (relocator, &ch,
-					    (target_addr & 0x1fffffff)
-					    + linux_size + 0x10000,
-					    (0x10000000 - size),
-					    size, 0x10000,
-					    GRUB_RELOCATOR_PREFERENCE_NONE, 0);
+    err = grub_relocator_alloc_chunk_align_safe (relocator, &ch, (target_addr & 0x1fffffff) +
+						 linux_size + 0x10000, 0x10000000, size,
+						 0x10000, GRUB_RELOCATOR_PREFERENCE_NONE, 0);
 
     if (err)
       goto fail;

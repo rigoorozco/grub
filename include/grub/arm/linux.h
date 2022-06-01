@@ -30,13 +30,13 @@ struct linux_arm_kernel_header {
   grub_uint32_t magic;
   grub_uint32_t start; /* _start */
   grub_uint32_t end;   /* _edata */
-  grub_uint32_t reserved2[4];
+  grub_uint32_t reserved2[3];
   grub_uint32_t hdr_offset;
 };
 
 #if defined(__arm__)
 # define GRUB_LINUX_ARMXX_MAGIC_SIGNATURE GRUB_LINUX_ARM_MAGIC_SIGNATURE
-# define linux_armxx_kernel_header linux_arm_kernel_header
+# define linux_arch_kernel_header linux_arm_kernel_header
 #endif
 
 #if defined GRUB_MACHINE_UBOOT

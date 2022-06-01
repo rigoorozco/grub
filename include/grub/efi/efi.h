@@ -74,9 +74,15 @@ grub_err_t EXPORT_FUNC (grub_efi_set_virtual_address_map) (grub_efi_uintn_t memo
 							   grub_efi_uintn_t descriptor_size,
 							   grub_efi_uint32_t descriptor_version,
 							   grub_efi_memory_descriptor_t *virtual_map);
-void *EXPORT_FUNC (grub_efi_get_variable) (const char *variable,
-					   const grub_efi_guid_t *guid,
-					   grub_size_t *datasize_out);
+grub_efi_status_t EXPORT_FUNC (grub_efi_get_variable_with_attributes) (const char *variable,
+								       const grub_efi_guid_t *guid,
+								       grub_size_t *datasize_out,
+								       void **data_out,
+								       grub_efi_uint32_t *attributes);
+grub_efi_status_t EXPORT_FUNC (grub_efi_get_variable) (const char *variable,
+						       const grub_efi_guid_t *guid,
+						       grub_size_t *datasize_out,
+						       void **data_out);
 grub_err_t
 EXPORT_FUNC (grub_efi_set_variable) (const char *var,
 				     const grub_efi_guid_t *guid,
@@ -90,12 +96,12 @@ extern void (*EXPORT_VAR(grub_efi_net_config)) (grub_efi_handle_t hnd,
 						char **device,
 						char **path);
 
-#if defined(__arm__) || defined(__aarch64__)
+#if defined(__arm__) || defined(__aarch64__) || defined(__riscv)
 void *EXPORT_FUNC(grub_efi_get_firmware_fdt)(void);
 grub_err_t EXPORT_FUNC(grub_efi_get_ram_base)(grub_addr_t *);
 #include <grub/cpu/linux.h>
-grub_err_t grub_armxx_efi_linux_check_image(struct linux_armxx_kernel_header *lh);
-grub_err_t grub_armxx_efi_linux_boot_image(grub_addr_t addr, grub_size_t size,
+grub_err_t grub_arch_efi_linux_check_image(struct linux_arch_kernel_header *lh);
+grub_err_t grub_arch_efi_linux_boot_image(grub_addr_t addr, grub_size_t size,
                                            char *args);
 #endif
 

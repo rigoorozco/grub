@@ -46,6 +46,7 @@
 #include <grub/dl.h>
 #include <grub/types.h>
 #include <grub/fshelp.h>
+#include <grub/safemath.h>
 
 GRUB_MOD_LICENSE ("GPLv3+");
 
@@ -703,6 +704,7 @@ grub_ext2_read_symlink (grub_fshelp_node_t node)
 {
   char *symlink;
   struct grub_fshelp_node *diro = node;
+  grub_size_t sz;
 
   if (! diro->inode_read)
     {
@@ -717,14 +719,21 @@ grub_ext2_read_symlink (grub_fshelp_node_t node)
        }
     }
 
-  symlink = grub_malloc (grub_le_to_cpu32 (diro->inode.size) + 1);
+  if (grub_add (grub_le_to_cpu32 (diro->inode.size), 1, &sz))
+    {
+      grub_error (GRUB_ERR_OUT_OF_RANGE, N_("overflow is detected"));
+      return NULL;
+    }
+
+  symlink = grub_malloc (sz);
   if (! symlink)
     return 0;
 
-  /* If the filesize of the symlink is bigger than
-     60 the symlink is stored in a separate block,
-     otherwise it is stored in the inode.  */
-  if (grub_le_to_cpu32 (diro->inode.size) <= sizeof (diro->inode.symlink))
+  /*
+   * If the filesize of the symlink is equal to or bigger than 60 the symlink
+   * is stored in a separate block, otherwise it is stored in the inode.
+   */
+  if (grub_le_to_cpu32 (diro->inode.size) < sizeof (diro->inode.symlink))
     grub_memcpy (symlink,
 		 diro->inode.symlink,
 		 grub_le_to_cpu32 (diro->inode.size));
@@ -1046,7 +1055,7 @@ grub_ext2_uuid (grub_device_t device, char **uuid)
 
 /* Get mtime.  */
 static grub_err_t
-grub_ext2_mtime (grub_device_t device, grub_int32_t *tm)
+grub_ext2_mtime (grub_device_t device, grub_int64_t *tm)
 {
   struct grub_ext2_data *data;
   grub_disk_t disk = device->disk;
@@ -1072,13 +1081,13 @@ grub_ext2_mtime (grub_device_t device, grub_int32_t *tm)
 static struct grub_fs grub_ext2_fs =
   {
     .name = "ext2",
-    .dir = grub_ext2_dir,
-    .open = grub_ext2_open,
-    .read = grub_ext2_read,
-    .close = grub_ext2_close,
-    .label = grub_ext2_label,
-    .uuid = grub_ext2_uuid,
-    .mtime = grub_ext2_mtime,
+    .fs_dir = grub_ext2_dir,
+    .fs_open = grub_ext2_open,
+    .fs_read = grub_ext2_read,
+    .fs_close = grub_ext2_close,
+    .fs_label = grub_ext2_label,
+    .fs_uuid = grub_ext2_uuid,
+    .fs_mtime = grub_ext2_mtime,
 #ifdef GRUB_UTIL
     .reserved_first_sector = 1,
     .blocklist_install = 1,
